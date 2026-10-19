@@ -70,7 +70,7 @@ def send_messages(N, server_socket, inputs, vn_connections, sockets, distances, 
         message_bytes = b"" # empty
         for t_char, t_ip, t_port, t_cost in tuples_to_send:
             ip_bytes = socket.inet_aton(t_ip)
-            message_bytes += struct.pack("!c 4s H i", t_char.encode('ascii'), ip_bytes, t_port, t_cost) # char, short, H?, integer
+            message_bytes += struct.pack("!c4sHi", t_char.encode('ascii'), ip_bytes, t_port, t_cost) # c = char, 4s = 4-byte bytes, H = short integer, i = integer
         s.sendall(message_bytes)
  
 def run_oracle_node(N, distances, filename, port=5000):
@@ -120,7 +120,7 @@ def run_oracle_node(N, distances, filename, port=5000):
                     if not data:
                         raise ConnectionClosedError("Something went wrong!?")
                     else:
-                        ip_bytes, udp_port = struct.unpack("!4sH", data) # short, H?
+                        ip_bytes, udp_port = struct.unpack("!4sH", data) # 4s = 4-byte bytes, H = short integer
                         udp_ip = socket.inet_ntoa(ip_bytes)
                         vn_connections[s]["udp_ip"] = udp_ip
                         vn_connections[s]["udp_port"] = udp_port
