@@ -7,5 +7,5 @@
 # Tabs at the beginning of a line are to be ignored (for readability - see below)
 # First row is for virtual node A, next for B, and so on
 # Example matrix for the example network shown in instructions is below
--1 10000000067777777777777785
+3 6
 2
