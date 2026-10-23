@@ -83,7 +83,6 @@ def run_oracle_node(N, distances, filename, port=5000):
     connections_finished = False
     last_sent = -1
     last_file_check = -1
-    sent_first_time = False
     print("ON started on port " + str(port) + ". Expecting " + str(N) + " connections!!")
     while True:
         if connections_finished == False and conn_msgs == N: 
@@ -98,10 +97,7 @@ def run_oracle_node(N, distances, filename, port=5000):
                 if timestamp != last_sent:
                     last_sent = timestamp
                     new_distance = get_distances(filename)
-                    if new_distance != distances or sent_first_time==False:
-                        sent_first_time=True
-                        distances = new_distance
-                        send_messages(N, server_socket, inputs, vn_connections, sockets, distances, filename)
+                    send_messages(N, server_socket, inputs, vn_connections, sockets, distances, filename)
         readable, _, _ = select.select(inputs, [], [], select_timeout)
         for s in readable:
             if s is server_socket:
