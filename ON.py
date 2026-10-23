@@ -96,7 +96,7 @@ def run_oracle_node(N, distances, filename, port=5000):
                 timestamp = os.path.getmtime(filename)
                 if timestamp != last_sent:
                     last_sent = timestamp
-                    new_distance = get_distances(filename)
+                    distances = get_distances(filename)
                     send_messages(N, server_socket, inputs, vn_connections, sockets, distances, filename)
         readable, _, _ = select.select(inputs, [], [], select_timeout)
         for s in readable:
