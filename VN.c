@@ -37,11 +37,13 @@ void send_connect(int fd,int UDP_PORT){
     struct sockaddr_in A;
     socklen_t L=sizeof(A);
     if (getsockname(fd, (struct sockaddr *)&A, &L) == 0) {
+
         char buffer[6];
-        memcpy(buffer, &A.sin_addr.s_addr, 4);      // already network order
-        uint16_t p = htons(UDP_PORT);
-        memcpy(buffer + 4, &p, 2);
-        send(fd, buffer, 6, 0);
+memcpy(buffer, &A.sin_addr.s_addr, 4);      // already network order
+uint16_t p = htons(UDP_PORT);
+memcpy(buffer + 4, &p, 2);
+send(fd, buffer, 6, 0);
+
     }
 }
 
@@ -101,12 +103,27 @@ void display_neighbour_info(){
 
 }
 
-#define LSP_PERIOD 10  
-#define LSP_COPIES 2   
+#define LSP_PERIOD 6  
+#define LSP_COPIES 3 
 int udp_fd=-1;
 uint32_t curr_seq_no=0;
 map<int, map<int,int>> graph;
 map<int, uint32_t> seq_storage; 
+
+// remove every edge touching 'id', in both directions
+void clear_node(int id){
+    graph[id].clear();
+    for(auto& [n, row] : graph)
+        row.erase(id);
+}
+
+void update_my_graph(){
+    clear_node(my_id);
+
+    for(auto& [x, y] : neighbour_info){
+        graph[my_id][x] = y.cost;
+    }
+}
 
 int make_udp_socket(int port){
     int fd=socket(AF_INET,SOCK_DGRAM,0);
@@ -151,12 +168,16 @@ void handle_lsp(const uint8_t* buf, int len, const struct sockaddr_in* src){
     auto it = seq_storage.find(origin);
     if(it != seq_storage.end() && seq <= it->second) return;   // old and duplicate
     seq_storage[origin] = seq;
-    graph[origin].clear();
-    for(size_t i = 0; i < count; i++){
-        const uint8_t* e = buf + 6 + 5 * i;
-        uint32_t c; memcpy(&c, e + 1, 4);
-        graph[origin][e[0] - 'A'] = (int)ntohl(c);
-    }
+    clear_node(origin);
+
+for(int i = 0; i < count; i++){
+    const uint8_t* e = buf + 6 + 5 * i;
+    uint32_t c; memcpy(&c, e + 1, 4);
+    int v = e[0] - 'A';
+    graph[origin][v] = (int)ntohl(c);
+    graph[v][origin] = (int)ntohl(c);
+}
+
  
     int from = -1;
     for(auto [x,y] : neighbour_info){
@@ -180,6 +201,7 @@ void send_lsp(){
         memcpy(&buf[off + 1], &c, 4);
         off += 5;
         graph[my_id][x] = y.cost;
+        graph[x][my_id] = y.cost;
     }
     send_to_neighbours(buf.data(), buf.size(), -1);
 }
@@ -194,6 +216,7 @@ int find_cost(map<int, map<int,int>>& graph, int i, int j){
 }
 
 void show_graph(){
+
     int maxid = my_id;
     for(auto& g : graph){
         maxid = max(maxid, g.first);
@@ -201,11 +224,13 @@ void show_graph(){
     }
     int N = maxid + 1;
     printf("---- Known graph (%d nodes) ----\n", N);
+
     for(int i = 0; i < N - 1; i++){
         for(int j = i + 1; j < N; j++)
              printf("%d ", find_cost(graph,i, j));
         printf("\n");
     }
+
     printf("--------------------------------\n");
 }
 
@@ -229,9 +254,10 @@ int main(int argc, char* argv[]){
     
     process_data(data,bytes_received);
     display_neighbour_info();
-
+    update_my_graph();
     time_t last_lsp=0;
     while(1){
+
                 fd_set rfds;
         FD_ZERO(&rfds);
         FD_SET(ON_FD, &rfds);
@@ -246,9 +272,19 @@ int main(int argc, char* argv[]){
                 int n = recv(ON_FD, buf, sizeof buf, 0);
                 if(n <= 0){ }
                 else{
-                neighbour_info.clear();            // drop stale neighbours
+                           // drop stale neighbours
+                
+                for(auto& [x, y] : neighbour_info){
+                    graph[x][my_id] = -1;
+                    graph[my_id][x] = -1;
+                }
+
+                neighbour_info.clear(); 
                 process_data(buf, n);
                 display_neighbour_info();
+                update_my_graph();
+                curr_seq_no+=5;
+                
                 send_lsp();                        // send immediately on change
                 last_lsp = time(NULL);
             }
@@ -262,10 +298,16 @@ int main(int argc, char* argv[]){
                 if(n > 0) handle_lsp(buf, (size_t)n, &src);
             }
         }
+
         if(time(NULL) - last_lsp >= LSP_PERIOD){
             send_lsp();
             last_lsp = time(NULL);
             show_graph();
         }
+
+
     }
+
+
+
 }
