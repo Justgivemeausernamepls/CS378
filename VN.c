@@ -37,13 +37,11 @@ void send_connect(int fd,int UDP_PORT){
     struct sockaddr_in A;
     socklen_t L=sizeof(A);
     if (getsockname(fd, (struct sockaddr *)&A, &L) == 0) {
-
         char buffer[6];
-memcpy(buffer, &A.sin_addr.s_addr, 4);      // already network order
-uint16_t p = htons(UDP_PORT);
-memcpy(buffer + 4, &p, 2);
-send(fd, buffer, 6, 0);
-
+        memcpy(buffer, &A.sin_addr.s_addr, 4);      // already network order
+        uint16_t p = htons(UDP_PORT);
+        memcpy(buffer + 4, &p, 2);
+        send(fd, buffer, 6, 0);
     }
 }
 
@@ -196,7 +194,6 @@ int find_cost(map<int, map<int,int>>& graph, int i, int j){
 }
 
 void show_graph(){
-
     int maxid = my_id;
     for(auto& g : graph){
         maxid = max(maxid, g.first);
@@ -204,13 +201,11 @@ void show_graph(){
     }
     int N = maxid + 1;
     printf("---- Known graph (%d nodes) ----\n", N);
-
     for(int i = 0; i < N - 1; i++){
         for(int j = i + 1; j < N; j++)
              printf("%d ", find_cost(graph,i, j));
         printf("\n");
     }
-
     printf("--------------------------------\n");
 }
 
@@ -237,7 +232,6 @@ int main(int argc, char* argv[]){
 
     time_t last_lsp=0;
     while(1){
-
                 fd_set rfds;
         FD_ZERO(&rfds);
         FD_SET(ON_FD, &rfds);
@@ -268,16 +262,10 @@ int main(int argc, char* argv[]){
                 if(n > 0) handle_lsp(buf, (size_t)n, &src);
             }
         }
-
         if(time(NULL) - last_lsp >= LSP_PERIOD){
             send_lsp();
             last_lsp = time(NULL);
             show_graph();
         }
-
-
     }
-
-
-
 }
